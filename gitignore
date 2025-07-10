@@ -1,0 +1,22 @@
+# Virtual environment
+.venv/
+venv/
+
+# IDE files
+.idea/
+
+# Build artifacts
+build/
+dist/
+
+# __pycache__ 及其他
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+.env
+.idea/
+.DS_Store
+*.log
+*.sqlite3

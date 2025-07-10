@@ -1,2 +1,2 @@
-# PsychAI
-TheCBTTestAIChatBoxTest
+# AI_PSYCH
+ 
