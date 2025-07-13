@@ -12,7 +12,49 @@ from utils.preprocess import load_esconv
 from utils.vector_index import encode_text
 import threading
 import queue
+from tencentcloud.common import credential
+from tencentcloud.tts.v20190823 import tts_client, models
+from tencentcloud.common.profile.client_profile import ClientProfile
+from tencentcloud.common.profile.http_profile import HttpProfile
+from playsound import playsound
+from sklearn.metrics.pairwise import cosine_similarity
 
+#==========合成声音===========
+'''def synthesize_speech(text, filename="output.mp3"):
+    cred = credential.Credential(os.getenv("TENCENTCLOUD_SECRET_ID"), os.getenv("TENCENTCLOUD_SECRET_KEY"))
+    httpProfile = HttpProfile()
+    httpProfile.endpoint = "tts.tencentcloudapi.com"
+    clientProfile = ClientProfile()
+    clientProfile.httpProfile = httpProfile
+    client = tts_client.TtsClient(cred, "ap-shanghai", clientProfile)
+
+    req = models.TextToVoiceRequest()
+    params = {
+        "Text": text,
+        "SessionId": str(random.randint(1000, 9999)),
+        "ModelType": 2,
+        "VoiceType": 101046,
+        "Codec": "mp3",
+        "SampleRate": 16000,
+        "Speed": 0,
+        "Volume": 5,
+    }
+    req.from_json_string(json.dumps(params))
+
+    resp = client.TextToVoice(req)
+    if resp.Audio:
+        with open(filename, "wb") as f:
+            f.write(resp.Audio)
+        print(f"🔊 音频保存为 {filename}")
+    else:
+        print("⚠️ 没有合成音频内容返回")
+        
+#=========封装播放合成音频============
+def speak(text, filename="kimi_reply.mp3"):
+    synthesize_speech(text, filename)
+    playsound(filename)
+    '''
+#=========线程管理===========
 os.chdir(os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else __file__))
 # ========== AUTO_CONTINUE_TEMPLATES ==========
 AUTO_CONTINUE_TEMPLATES = [
@@ -45,6 +87,40 @@ with open("system_prompt.txt", "r", encoding="utf-8") as f:
 chat_history = [system_prompt]
 context_injected = False
 top_k = 3
+
+#=========语义协同打分==========
+def evaluate_understanding(user_text, model_reply):
+    try:
+        # 翻译为英文
+        def zh2en(text):
+            response = client.chat.completions.create(
+                model="moonshot-v1-8k",
+                messages=[
+                    {"role": "system", "content": "请将以下中文翻译为英文，不要输出任何其他内容。"},
+                    {"role": "user", "content": text}
+                ],
+                temperature=0.7,
+            )
+            return response.choices[0].message.content.strip()
+
+        user_en = zh2en(user_text)
+        reply_en = zh2en(model_reply)
+
+        # 编码向量
+        u_vec = encode_text(user_en, embedding_model)
+        r_vec = encode_text(reply_en, embedding_model)
+
+        # 计算距离（1 - cosine sim）
+        sim = cosine_similarity(u_vec, r_vec)[0][0]
+        nclid_score = 1 - sim  # 越小越好
+
+        # 映射为“理解感”分数（越高越好）
+        pu_score = max(0, 1 - nclid_score) * 5  # 满分5分
+        return pu_score
+
+    except Exception as e:
+        print("⚠️ 理解评分失败：", str(e))
+        return 0.0
 
 # ========== 回复函数 ==========
 def get_reply(prompt_messages, max_tokens=60):
@@ -138,6 +214,9 @@ while True:
 
         first_sentence = get_reply(chat_history, max_tokens=200)
         print("\n🤖 Kimi：", first_sentence)
+        score = evaluate_understanding(user_input, first_sentence)
+        print(f"📊 理解感评分：{score:.2f}")
+        #speak(first_sentence)
         chat_history.append({"role": "assistant", "content": first_sentence})
 
         # === 沉默监听 + 自动续说 ===
@@ -145,6 +224,7 @@ while True:
         while silent_rounds < 5:
             print("\n(你可以接着说，也可以沉默 20 秒让我继续)\n")
             follow_up = safe_input_with_timeout("你：", timeout=20)
+            last_input_empty = not follow_up.strip()
 
             if follow_up.strip():
                 # 用户继续说
@@ -153,6 +233,9 @@ while True:
 
                 follow_reply = get_reply(chat_history, max_tokens=200)
                 print("\n🤖 Kimi：", follow_reply)
+                #speak(follow_reply)
+                score = evaluate_understanding(user_input, follow_reply)
+                print(f"📊 理解感评分：{score:.2f}")
                 chat_history.append({"role": "assistant", "content": follow_reply})
                 silent_rounds = 0  # 重置沉默计数器
             else:
@@ -166,6 +249,9 @@ while True:
                 continuation = get_reply(chat_history, max_tokens=200)
                 if continuation.strip():
                     print("🤖 Kimi（继续）：", continuation)
+                    #speak(continuation)
+                    score = evaluate_understanding(user_input, continuation)
+                    print(f"📊 理解感评分：{score:.2f}")
                     chat_history.append({"role": "assistant", "content": continuation})
                 silent_rounds += 1
 

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>🌸 我的 AI 好朋友</title>
+  <style>
+    body {
+      font-family: "Microsoft Yahei", sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 10px;
+      background-color: #f9f9f9;
+    }
+    #chat {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 400px;
+      overflow-y: auto;
+      background-color: #fff;
+    }
+    .bubble {
+      margin: 5px 0;
+      padding: 8px 12px;
+      border-radius: 8px;
+      max-width: 80%;
+      white-space: pre-wrap;
+    }
+    .user {
+      background-color: #d0f0ff;
+      align-self: flex-end;
+      margin-left: auto;
+    }
+    .ai {
+      background-color: #eee;
+      align-self: flex-start;
+      margin-right: auto;
+    }
+    .row {
+      display: flex;
+    }
+  </style>
+</head>
+<body>
+  <h2>🌸 我的 AI 好朋友</h2>
+  <input id="uid" placeholder="你的名字（如 Alice）" style="width:100%;"><br><br>
+  <div id="chat"></div><br>
+  <textarea id="msg" rows="3" style="width:100%;" placeholder="输入你的想法..."></textarea><br>
+  <button onclick="send()">发送</button>
+
+  <script>
+    const chatBox = document.getElementById("chat");
+    const inputBox = document.getElementById("msg");
+
+    function appendBubble(text, cls) {
+      const div = document.createElement("div");
+      div.className = "row";
+      const span = document.createElement("div");
+      span.className = "bubble " + cls;
+      span.innerText = text;
+      div.appendChild(span);
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    async function send() {
+      const text = inputBox.value.trim();
+      const user_id = document.getElementById("uid").value.trim() || "anonymous";
+      if (!text) return;
+
+      appendBubble(text, "user");
+      inputBox.value = "";
+      inputBox.focus();
+
+      const res = await fetch("http://localhost:5005/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, user_id })
+      });
+
+      const data = await res.json();
+      appendBubble(data.text, "ai");
+    }
+
+    inputBox.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+    });
+  </script>
+</body>
+</html>
