@@ -1,0 +1,6 @@
+openai>=1.0.0
+faiss-cpu==1.7.4
+sentence-transformers==2.2.2
+python-dotenv>=1.0.0
+flask
+flask_cors
