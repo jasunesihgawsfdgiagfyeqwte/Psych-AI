@@ -71,7 +71,7 @@
       inputBox.value = "";
       inputBox.focus();
 
-      const res = await fetch("http://localhost:5005/chat", {
+      const res = await fetch("http://47.116.17.17:5005/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, user_id })
@@ -84,7 +84,7 @@
     // 自动续说轮询，每 10 秒检查一次
     setInterval(async () => {
       const user_id = document.getElementById("uid").value.trim() || "anonymous";
-      const res = await fetch("http://localhost:5005/check_update", {
+      const res = await fetch("http://47.116.17.17:5005/check_update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id })
